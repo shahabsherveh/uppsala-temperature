@@ -1,0 +1,25 @@
+name: ar1_t
+ar:
+  coeffs:
+    mu: 0
+    sigma: 1
+  init:
+    mu: 1.2
+    sigma: 1
+  sigma: 1
+  size: 2
+# seasonality:
+#   init:
+#     mu: 0
+#     sigma: 1
+#   sigma: 2
+#   size: 11
+trend:
+  init:
+    mu: 0
+    sigma: 1
+  sigma: 2
+  drift:
+    mu: 0
+    sigma: 2
+sigma: 2
