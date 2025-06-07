@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uppsala-temperature"
+readme = "README.md"
+dependencies = [
+  "pymc == 5.22.0",
+  "pymc-extras == 0.2.6",
+  "pandas == 2.2.3",
+  "numpy == 2.2.5",
+  "matplotlib == 3.10.1",
+  "arviz == 0.21.0",
+]
+dynamic = ["version"]
