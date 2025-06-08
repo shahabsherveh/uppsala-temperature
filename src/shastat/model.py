@@ -27,9 +27,9 @@ class SamplerConfig(BaseConfig):
 
 
 class TrendConfig(BaseConfig):
-    def __init__(self, order, innovation_order):
+    def __init__(self, order, innovations_order):
         self.order = order
-        self.innovation_order = innovation_order
+        self.innovations_order = innovations_order
 
 
 class ARConfig(BaseConfig):
@@ -56,7 +56,7 @@ class StructuralTimeSeriesConfig:
     def __init__(
         self,
         trend_order: int | None = None,
-        trend_innovation_order: int = 0,
+        trend_innovations_order: int = 0,
         ar_order: int | None = 1,
         season_length: int | None = None,
         season_innovation: bool = True,
@@ -66,14 +66,14 @@ class StructuralTimeSeriesConfig:
         cycle_innovation: bool = True,
     ):
         if trend_order is not None:
-            self.trend = TrendConfig(trend_order, trend_innovation_order)
-        elif ar_order is not None:
+            self.trend = TrendConfig(trend_order, trend_innovations_order)
+        if ar_order is not None:
             self.ar = ARConfig(ar_order)
-        elif season_length is not None:
+        if season_length is not None:
             self.seasonal = TimeSeasonalConfig(
                 season_length, season_innovation, seasonal_name
             )
-        elif cycle_length is not None:
+        if cycle_length is not None:
             cycle_length = (
                 cycle_length if isinstance(cycle_length, list) else [cycle_length]
             )
@@ -92,11 +92,11 @@ class StructuralTimeSeriesConfig:
             v = getattr(self, k)
             if isinstance(v, list):
                 config[k] = [item.to_dict() for item in v]
-            elif v is not None:
+            elif v:
                 config[k] = v.to_dict()
             else:
                 config[k] = None
-            return config
+        return config
 
 
 class StructuralTimeSeriesBuilder(ModelBuilder):
@@ -112,7 +112,7 @@ class StructuralTimeSeriesBuilder(ModelBuilder):
         if sampler_config is None:
             sampler_config = SamplerConfig()
         super().__init__(model_config.to_dict(), sampler_config.to_dict())
-        self._model_skeleton = None
+        self._model_skeleton = self.build_skeleton()
 
     def build_skeleton(self):
         ar_config = self.model_config.get("ar")
@@ -150,26 +150,31 @@ class StructuralTimeSeriesBuilder(ModelBuilder):
                     dims=param_dims["P0"],
                 )
             elif name.startswith("sigma_"):
-                pm.Exponential(name)
+                locals()[name] = pm.Exponential(name, dims=param_dims.get(name))
             else:
-                pm.Normal(name, dims=param_dims[name])
+                locals()[name] = pm.Normal(name, dims=param_dims[name])
 
-    def build_model(self, X: pd.DataFrame, y: pd.Series, **kwargs) -> None:
+    def build_model(
+        self, X: pd.DataFrame | pd.Series | None, y: pd.Series | pd.DataFrame, **kwargs
+    ) -> None:
         self._generate_and_preprocess_model_data(X, y)
-        self._model_skeleton = self.build_skeleton()
         param_names = self._model_skeleton.param_names
         param_dims = self._model_skeleton.param_dims
         k_states = self._model_skeleton.k_states
+        print(f"Building model with parameters: {param_names}")
+        print(f"Parameter dimensions: {param_dims}")
 
         with pm.Model(coords=self._model_skeleton.coords) as self.model:
             self.build_priors(param_names, param_dims, k_states)
-            self._model_skeleton.build_statespace_graph(data=y)
+            self._model_skeleton.build_statespace_graph(data=y.to_frame())
 
     def _generate_and_preprocess_model_data(
-        self, X: pd.DataFrame | pd.Series | None = None, y: pd.Series | None = None
+        self,
+        X: pd.DataFrame | pd.Series | None = None,
+        y: pd.DataFrame | pd.Series = pd.Series(),
     ) -> None:
         self._X = X
-        self._y = y.reshape(-1, 1) if y is not None else None
+        self._y = y
 
     def _data_setter(self, X=None, y=None):
         if isinstance(X, pd.DataFrame):
@@ -181,7 +186,7 @@ class StructuralTimeSeriesBuilder(ModelBuilder):
         with self.model:
             pm.set_data({"x_data": x_values})
             if y is not None:
-                pm.set_data({"y_data": y.values if isinstance(y, pd.Series) else y})
+                pm.set_data({"y_data": y})
 
     @property
     def output_var(self):
@@ -190,7 +195,7 @@ class StructuralTimeSeriesBuilder(ModelBuilder):
     def fit(
         self,
         X: pd.DataFrame | None = None,
-        y: pd.Series | None = None,
+        y: pd.Series = pd.Series(),
         progressbar: bool = True,
         predictor_names: list[str] | None = None,
         random_seed: RandomState = None,
@@ -229,8 +234,7 @@ class StructuralTimeSeriesBuilder(ModelBuilder):
         Auto-assigning NUTS sampler...
         Initializing NUTS using jitter+adapt_diag...
         """
-        y = pd.DataFrame({self.output_var: y})
-        self._generate_and_preprocess_model_data(X, y.values.flatten())
+        self._generate_and_preprocess_model_data(X, y)
         self.build_model(self._X, self._y)
 
         sampler_config = self.sampler_config.copy()
@@ -251,4 +255,28 @@ class StructuralTimeSeriesBuilder(ModelBuilder):
                 )
                 self.idata.add_groups(fit_data=combined_data.to_xarray())  # type: ignore
 
+        self.is_fitted_ = True
         return self.idata  # type: ignore
+
+    def forecast(
+        self,
+        steps: int,
+        **kwargs: Any,
+    ) -> pd.DataFrame:
+        """
+        Forecast future values based on the fitted model.
+        Parameters
+        ----------
+        steps : int
+            Number of steps to forecast.
+        X : pd.DataFrame, optional
+            Additional input data for forecasting.
+        y : pd.Series or pd.DataFrame, optional
+            Target values for forecasting.
+        Returns
+        -------
+        pd.DataFrame
+            Forecasted values.
+        """
+        assert self.is_fitted_, "Model must be fitted before forecasting."
+        return self._model_skeleton.forecast(idata=self.idata, periods=steps, **kwargs)

@@ -12,5 +12,9 @@ dependencies = [
   "numpy == 2.2.5",
   "matplotlib == 3.10.1",
   "arviz == 0.21.0",
+  "typer == 0.16.0",
+  "pytest == 8.4.0",
 ]
 dynamic = ["version"]
+[project.scripts]
+shastats = "shastat.cli:app"
