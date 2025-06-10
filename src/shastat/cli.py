@@ -74,42 +74,41 @@ def train(
 
     if not model_path:
         model_config = (
-            StructuralTimeSeriesConfig.from_file(model_config) if model_config else None
+            StructuralTimeSeriesConfig.from_file(model_config_path).to_dict()
+            if model_config_path
+            else None
         )
         sampler_config = (
-            SamplerConfig.from_file(sampler_config) if sampler_config else None
+            SamplerConfig.from_file(sampler_config_path).to_dict()
+            if sampler_config_path
+            else None
         )
         model = StructuralTimeSeriesBuilder(
             model_config=model_config, sampler_config=sampler_config
         )
     else:
-        from .model import load_model
-
-        model = load_model(model_path)
+        model = StructuralTimeSeriesBuilder.load(model_path)
     data = read_data(data_path)
-    y = preprocess_data(data, resample="M", test_size=12)[0]
+    y = preprocess_data(data, resample_freq="ME", start_year="1950", end_year="2020")
+    print(f"Training data shape: {y.shape}")
     model.fit(y=y)
-    model.save(ouptput_path)
+    if output_path:
+        model.save(output_path)
 
 
 @app.command()
-def predict(
-    data_path: Annotated[str, typer.Option(help="The path to prediction data")],
-    model_config: Annotated[str, typer.Option(help="Path to model configuration file")],
-    sampler_config: Optional[
-        Annotated[str, typer.Option(help="The path to sampler configuration")]
-    ] = None,
+def forecast(
+    model_path: Annotated[str, typer.Option(help="Path to the trained model")],
+    steps: Annotated[int, typer.Option(help="Number of steps to forecast")] = 12,
 ):
-    model_config = (
-        StructuralTimeSeriesConfig.from_file(model_config) if model_config else None
+    from .model import (
+        StructuralTimeSeriesBuilder,
+        StructuralTimeSeriesConfig,
+        SamplerConfig,
     )
-    sampler_config = SamplerConfig.from_file(sampler_config) if sampler_config else None
-    model = StructuralTimeSeriesBuilder(
-        model_config=model_config, sampler_config=sampler_config
-    )
-    data = read_data(data_path)
-    train, test = preprocess_data(data, resample="M", test_size=12)
-    predictions = model.predict(train, test)
+
+    model = StructuralTimeSeriesBuilder.load(model_path)
+    predictions = model.forecast(steps=steps)
     print(predictions)
 
 
