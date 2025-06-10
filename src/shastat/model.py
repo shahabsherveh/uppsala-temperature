@@ -8,22 +8,24 @@ import arviz as az
 from pytensor import tensor as pt
 import pandas as pd
 import numpy as np
-
-
-class BaseConfig:
-    @classmethod
-    def from_dict(cls, config_dict):
-        return cls(**config_dict)
-
-    def to_dict(self):
-        return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+from .utils import BaseConfig
 
 
 class SamplerConfig(BaseConfig):
-    def __init__(self, n_chains=4, n_samples=1000, n_burn=500):
+    def __init__(
+        self,
+        n_chains=4,
+        n_samples=1000,
+        n_burn=500,
+        nuts_sampler_kwargs={"t0": 1, "step_scale": 0.1},
+    ):
+        """
+        Configuration for the sampler.
+        """
         self.n_chains = n_chains
         self.n_samples = n_samples
         self.n_burn = n_burn
+        self.nuts_sampler_kwargs = nuts_sampler_kwargs
 
 
 class TrendConfig(BaseConfig):
