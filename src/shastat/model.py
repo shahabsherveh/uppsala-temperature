@@ -40,21 +40,21 @@ class ARConfig(BaseConfig):
 
 
 class TimeSeasonalConfig(BaseConfig):
-    def __init__(self, season_length, inovation, name):
+    def __init__(self, season_length, innovations, name):
         self.season_length = season_length
-        self.innovation = inovation
+        self.innovations = innovations
         self.name = name
 
 
 class FrequencySeasonalityConfig(BaseConfig):
-    def __init__(self, season_length, n, innovation, name):
+    def __init__(self, season_length, n, innovations, name):
         self.season_length = season_length
         self.n = n
         self.name = name
-        self.innovation = innovation
+        self.innovations = innovations
 
 
-class StructuralTimeSeriesConfig:
+class StructuralTimeSeriesConfig(BaseConfig):
     def __init__(
         self,
         trend_order: int | None = None,
