@@ -7,13 +7,13 @@ name = "uppsala-temperature"
 readme = "README.md"
 dependencies = [
   "pymc == 5.22.0",
-  "pymc-extras == 0.2.6",
   "pandas == 2.2.3",
   "numpy == 2.2.5",
   "matplotlib == 3.10.1",
   "arviz == 0.21.0",
   "typer == 0.16.0",
   "pytest == 8.4.0",
+  "pymc-extras @ git+https://github.com/shahabsherveh/pymc-extras.git",
 ]
 dynamic = ["version"]
 [project.scripts]
