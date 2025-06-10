@@ -98,20 +98,47 @@ class StructuralTimeSeriesConfig:
                 config[k] = None
         return config
 
+    @classmethod
+    def from_dict(cls, config_dict):
+        """
+        Create an instance of StructuralTimeSeriesConfig from a dictionary.
+        """
+        trend_config = config_dict.get("trend")
+        ar_config = config_dict.get("ar")
+        seasonal_config = config_dict.get("seasonal")
+        cycles_config = config_dict.get("cycles")
+        return cls(
+            trend_order=trend_config["order"] if trend_config else None,
+            trend_innovations_order=trend_config["innovations_order"]
+            if trend_config
+            else 0,
+            ar_order=ar_config["order"] if ar_config else None,
+            season_length=seasonal_config["season_length"] if seasonal_config else None,
+            season_innovation=seasonal_config["innovations"]
+            if seasonal_config
+            else True,
+            seasonal_name=seasonal_config["name"] if seasonal_config else "annual",
+            cycle_length=[c["season_length"] for c in cycles_config]
+            if cycles_config
+            else None,
+            cycle_n=[c["n"] for c in cycles_config] if cycles_config else None,
+            cycle_innovation=cycles_config[0]["innovations"]
+            if cycles_config and isinstance(cycles_config, list)
+            else True,
+        )
+
 
 class StructuralTimeSeriesBuilder(ModelBuilder):
     _model_type = "StructuralTimeSeries"
 
     def __init__(
-        self,
-        model_config: StructuralTimeSeriesConfig | None = None,
-        sampler_config: SamplerConfig | None = None,
+        self, model_config: dict | None = None, sampler_config: dict | None = None
     ):
         if model_config is None:
-            model_config = StructuralTimeSeriesConfig()
+            model_config = StructuralTimeSeriesConfig().to_dict()
         if sampler_config is None:
-            sampler_config = SamplerConfig()
-        super().__init__(model_config.to_dict(), sampler_config.to_dict())
+            sampler_config = SamplerConfig().to_dict()
+        super().__init__(model_config, sampler_config)
         self._model_skeleton = self.build_skeleton()
 
     def build_skeleton(self):
@@ -138,7 +165,6 @@ class StructuralTimeSeriesBuilder(ModelBuilder):
             self._cycles = [st.FrequencySeasonality(**c) for c in cycle_config]
             for cycle in self._cycles:
                 self._hidden_state += cycle
-
         return self._hidden_state.build()
 
     def build_priors(self, param_names, param_dims, k_states) -> None:

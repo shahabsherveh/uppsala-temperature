@@ -5,17 +5,62 @@ app = typer.Typer()
 
 
 @app.command()
+def create_model_config(
+    trend_order: Optional[
+        Annotated[int, typer.Option(help="Order of the trend component")]
+    ] = None,
+    trend_innovations_order: Annotated[
+        int, typer.Option(help="Order of innovations for the trend component")
+    ] = 0,
+    ar_order: Optional[
+        Annotated[int, typer.Option(help="Order of the AR component")]
+    ] = 1,
+    season_length: Optional[
+        Annotated[int, typer.Option(help="Length of the seasonal component")]
+    ] = None,
+    season_innovation: Annotated[
+        bool, typer.Option(help="Order of innovations for the seasonal component")
+    ] = False,
+    seasonal_name: Annotated[
+        str, typer.Option(help="Name of the seasonal component")
+    ] = "annual",
+    cycle_length: Optional[
+        Annotated[int, typer.Option(help="Length of the cycle component")]
+    ] = None,
+    cycle_innovation: Annotated[
+        bool, typer.Option(help="Order of innovations for the cycle component")
+    ] = False,
+    cycle_n: Optional[Annotated[int, typer.Option(help="Number of cycles")]] = None,
+):
+    from .model import StructuralTimeSeriesConfig
+
+    config = StructuralTimeSeriesConfig(
+        trend_order=trend_order,
+        trend_innovations_order=trend_innovations_order,
+        ar_order=ar_order,
+        season_length=season_length,
+        season_innovation=season_innovation,
+        seasonal_name=seasonal_name,
+        cycle_length=cycle_length,
+        cycle_innovation=cycle_innovation,
+        cycle_n=cycle_n,
+    )
+    config.to_file("model_config.json")
+    print("Model configuration file created: model_config.json")
+
+
+@app.command()
 def train(
     data_path: Annotated[str, typer.Option(help="The path to training data")],
-    model_config: Optional[
+    model_config_path: Optional[
         Annotated[str, typer.Option(help="Path to model configuration file")]
     ] = None,
-    sampler_config: Optional[
+    sampler_config_path: Optional[
         Annotated[str, typer.Option(help="The path to sampler configuration")]
     ] = None,
-    ouptput_path: Annotated[
-        str, typer.Option(help="Path to save the model")
-    ] = "model.nc",
+    output_path: Optional[
+        Annotated[str, typer.Option(help="Path to save the model")]
+    ] = None,
     model_path: Optional[
         Annotated[str, typer.Option(help="Path to a pre-trained model")]
     ] = None,
