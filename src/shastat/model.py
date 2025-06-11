@@ -65,7 +65,7 @@ class StructuralTimeSeriesConfig(BaseConfig):
         seasonal_name: str = "annual",
         cycle_length: int | list[int] | None = None,
         cycle_n: int | list[int] | None = None,
-        cycle_innovation: bool = True,
+        cycle_innovation: list[bool] | bool = True,
     ):
         if trend_order is not None:
             self.trend = TrendConfig(trend_order, trend_innovations_order)
@@ -79,11 +79,25 @@ class StructuralTimeSeriesConfig(BaseConfig):
             cycle_length = (
                 cycle_length if isinstance(cycle_length, list) else [cycle_length]
             )
+            cycle_n = cycle_n if isinstance(cycle_n, list) else [cycle_n]
+            cycle_innovation = (
+                cycle_innovation
+                if isinstance(cycle_innovation, list)
+                else [cycle_innovation]
+            )
             self.cycles = (
-                FrequencySeasonalityConfig(
-                    season_length, cycle_n, cycle_innovation, "cycle"
-                )
-                if cycle_length
+                [
+                    FrequencySeasonalityConfig(
+                        season_length=c_len,
+                        n=c_n,
+                        innovations=c_innovation,
+                        name="annual",
+                    )
+                    for c_len, c_n, c_innovation in zip(
+                        cycle_length, cycle_n, cycle_innovation
+                    )
+                ]
+                if cycle_length is not None
                 else None
             )
 

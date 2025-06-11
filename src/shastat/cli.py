@@ -25,12 +25,15 @@ def create_model_config(
         str, typer.Option(help="Name of the seasonal component")
     ] = "annual",
     cycle_length: Optional[
-        Annotated[int, typer.Option(help="Length of the cycle component")]
+        Annotated[list[int], typer.Option(help="Length of the cycle component")]
     ] = None,
     cycle_innovation: Annotated[
-        bool, typer.Option(help="Order of innovations for the cycle component")
-    ] = False,
-    cycle_n: Optional[Annotated[int, typer.Option(help="Number of cycles")]] = None,
+        list[bool],
+        typer.Option(help="Order of innovations for the cycle component"),
+    ] = [False],
+    cycle_n: Optional[
+        Annotated[list[int], typer.Option(help="Number of cycles")]
+    ] = None,
 ):
     from .model import StructuralTimeSeriesConfig
 
