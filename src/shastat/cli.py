@@ -114,6 +114,10 @@ def train(
         StructuralTimeSeriesConfig,
         SamplerConfig,
     )
+    import pytensor as pt
+
+    pt.config.blas__ldflags = "-lblas -llapack"
+    pt.config.allow_gc = False
     from .data import read_data, preprocess_data
 
     if not model_path:
@@ -147,9 +151,12 @@ def forecast(
 ):
     from .model import (
         StructuralTimeSeriesBuilder,
-        StructuralTimeSeriesConfig,
         SamplerConfig,
     )
+    import pytensor as pt
+
+    pt.config.blas__ldflags = "-lblas -llapack"
+    pt.config.allow_gc = False
 
     model = StructuralTimeSeriesBuilder.load(model_path)
     predictions = model.forecast(steps=steps)
