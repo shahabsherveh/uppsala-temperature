@@ -17,7 +17,7 @@ class SamplerConfig(BaseConfig):
         n_chains=4,
         n_samples=1000,
         n_burn=500,
-        nuts_sampler_kwargs={"t0": 1, "step_scale": 0.1},
+        nuts_sampler_kwargs={},
     ):
         """
         Configuration for the sampler.

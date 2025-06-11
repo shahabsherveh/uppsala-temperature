@@ -53,6 +53,47 @@ def create_model_config(
 
 
 @app.command()
+def create_sampler_config(
+    n_chains: Annotated[int, typer.Option(help="Number of chains")] = 4,
+    n_samples: Annotated[int, typer.Option(help="Number of samples per chain")] = 1000,
+    n_burn: Annotated[int, typer.Option(help="Number of burn-in samples")] = 500,
+    step_scale: Annotated[
+        float, typer.Option(help="Step scale for the sampler")
+    ] = 0.25,
+    target_accept: Annotated[
+        float, typer.Option(help="Target acceptance rate for the sampler")
+    ] = 0.8,
+    gamma: Annotated[
+        float, typer.Option(help="Gamma parameter for the sampler")
+    ] = 0.05,
+    k: Annotated[float, typer.Option(help="K parameter for the sampler")] = 0.75,
+    t0: Annotated[int, typer.Option(help="T0 parameter for the sampler")] = 10,
+    adapt_step_size: Annotated[
+        bool, typer.Option(help="Whether to adapt the step size")
+    ] = True,
+):
+    from .model import SamplerConfig
+
+    nuts_sampler_kwargs = {
+        "step_scale": step_scale,
+        "target_accept": target_accept,
+        "gamma": gamma,
+        "k": k,
+        "t0": t0,
+        "adapt_step_size": adapt_step_size,
+    }
+
+    config = SamplerConfig(
+        n_chains=n_chains,
+        n_samples=n_samples,
+        n_burn=n_burn,
+        nuts_sampler_kwargs=nuts_sampler_kwargs,
+    )
+    config.to_file("sampler_config.json")
+    print("Sampler configuration file created: sampler_config.json")
+
+
+@app.command()
 def train(
     data_path: Annotated[str, typer.Option(help="The path to training data")],
     model_config_path: Optional[
