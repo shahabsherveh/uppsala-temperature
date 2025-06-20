@@ -8,3 +8,7 @@ outputs/
 *.egg-info/
 __pycache__/
 tests/test_data/
+.pytest_cache/
+mlruns/
+*.pkl
+*.nc
