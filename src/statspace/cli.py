@@ -148,6 +148,9 @@ def train(
 def forecast(
     model_path: Annotated[str, typer.Option(help="Path to the trained model")],
     steps: Annotated[int, typer.Option(help="Number of steps to forecast")] = 12,
+    output_path: Annotated[
+        str, typer.Option(help="Path to save the forecast results")
+    ] = "predictions.nc",
 ):
     from .model import (
         StructuralTimeSeriesBuilder,
@@ -160,7 +163,7 @@ def forecast(
 
     model = StructuralTimeSeriesBuilder.load(model_path)
     predictions = model.forecast(steps=steps)
-    print(predictions)
+    predictions.to_netcdf(output_path)
 
 
 if __name__ == "__main__":

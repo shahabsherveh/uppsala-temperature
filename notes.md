@@ -16,3 +16,10 @@
 - Work on daily grain modeling
 - Maybe contribute to pymc-extras.
 - Create distributed framework for time-series bayesian inference.
+- Continue with statsmodels to work with state-space models.
+- Create a backtesting framework for time-series models.
+- Integrate with mlflow
+  - Add customize metrics
+  - Add interactive visualizations
+  - Add interactive
+- Create an API for SMHI data

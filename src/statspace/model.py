@@ -162,6 +162,7 @@ class StructuralTimeSeriesBuilder(ModelBuilder):
         trend_config = self.model_config.get("trend")
         seasonal_config = self.model_config.get("seasonal")
         cycle_config = self.model_config.get("cycles")
+        self._hidden_state = 0
 
         if ar_config:
             self._ar = st.AutoregressiveComponent(**ar_config)
@@ -170,7 +171,7 @@ class StructuralTimeSeriesBuilder(ModelBuilder):
             self._trend = (
                 st.LevelTrendComponent(**trend_config) if trend_config else None
             )
-            self._hidden_state += self._trend
+            self._hidden_state = self._trend
         if seasonal_config:
             self._seasonals = (
                 st.TimeSeasonality(**seasonal_config) if seasonal_config else None
@@ -306,7 +307,7 @@ class StructuralTimeSeriesBuilder(ModelBuilder):
         self,
         steps: int,
         **kwargs: Any,
-    ) -> pd.DataFrame:
+    ) -> az.InferenceData:
         """
         Forecast future values based on the fitted model.
         Parameters
