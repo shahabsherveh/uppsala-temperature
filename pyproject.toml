@@ -3,18 +3,17 @@ requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "uppsala-temperature"
-readme = "README.md"
 dependencies = [
-  "pymc == 5.22.0",
+  "statsmodels == 0.14.4",
   "pandas == 2.2.3",
   "numpy == 2.2.5",
+  "scipy == 1.15.3",
   "matplotlib == 3.10.1",
-  "arviz == 0.21.0",
   "typer == 0.16.0",
   "pytest == 8.4.0",
-  "pymc-extras @ git+https://github.com/shahabsherveh/pymc-extras.git",
 ]
+name = "uppsala-temperature"
+readme = "README.md"
 dynamic = ["version"]
 [project.scripts]
-shastats = "shastat.cli:app"
+statspace = "statspace.cli:app"
