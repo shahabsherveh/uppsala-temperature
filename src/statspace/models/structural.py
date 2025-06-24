@@ -1,5 +1,21 @@
 import numpy as np
+import pandas as pd
+from statsmodels.tsa.statespace.structural import (
+    UnobservedComponentsResults,
+    UnobservedComponents,
+)
 from .utils import BaseParams
+
+import dash
+from dash import (
+    Dash,
+    html,
+    dcc,
+    callback,
+    dash_table,
+)
+from dash.dependencies import Input, Output
+import plotly.express as px
 
 
 class FrequencySeasonalityParams(BaseParams):
@@ -142,14 +158,492 @@ class StructuralTimeSeriesParams(BaseParams):
         )
 
 
-class Visualizaiton:
+class Visualization:
     def __init__(
         self,
         observed,
-        fitted,
-        trend,
-        freq_seasonal,
-        seasonal,
-        autoregressive,
+        model: UnobservedComponents,
+        results: UnobservedComponentsResults,
+        unobserved_future_data: pd.DataFrame,
     ) -> None:
-        pass
+        self.observed = observed
+        self.model = model
+        self.results = results
+        self.unobserved_future_data = unobserved_future_data
+        self.dash_layout = None
+        self.prediction_graphs = {
+            "actual_vs_fitted": None,
+            "residuals": None,
+            "residuals_acf": None,
+            "residuals_histogram": None,
+            "residuals_qq": None,
+            "actual_vs_fitted_future": None,
+        }
+        self.components_graphs = {
+            "seasonal_component": None,
+            "frequency_seasonal_components": None,
+            "cycle_component": None,
+            "irregular_component": None,
+            "trend_component": None,
+            "level_component": None,
+            "autoregressive_component": None,
+        }
+
+        self.model_diagnostics_graphs = {
+            "parameters_statistics": None,
+            "model_summary": None,
+            "model_statistics": None,
+        }
+        self.app = Dash(__name__)
+
+    def build_layout(self):
+        self.dash_layout = html.Div(
+            [
+                html.H1("Structural Time Series Model Dashboard"),
+                dcc.Tabs(
+                    [
+                        dcc.Tab(
+                            label="Prediction",
+                            children=[
+                                g
+                                for g in self.prediction_graphs.values()
+                                if g is not None
+                            ],
+                        ),
+                        dcc.Tab(
+                            label="Components",
+                            children=[
+                                g
+                                for g in self.components_graphs.values()
+                                if g is not None
+                            ],
+                        ),
+                        dcc.Tab(
+                            label="Diagnostics",
+                            children=[
+                                g
+                                for g in self.model_diagnostics_graphs.values()
+                                if g is not None
+                            ],
+                        ),
+                    ],
+                ),
+            ]
+        )
+
+    def build_app(self):
+        self.app = Dash(__name__)
+        self.build_prediction_graphs()
+        self.build_components_graphs()
+        self.build_model_diagnostics_graphs()
+        self.build_layout()
+        self.app.layout = self.dash_layout
+
+    def build_prediction_graphs(self):
+        for key in self.prediction_graphs:
+            if hasattr(self, f"plot_{key}"):
+                figure = getattr(self, f"plot_{key}")()
+                if figure:
+                    self.prediction_graphs[key] = dcc.Graph(
+                        figure=figure,
+                        id=key,
+                        style={
+                            "display": "inline-block",
+                            "width": "50%",
+                            "height": "800px",
+                        },
+                    )
+
+    def build_components_graphs(self):
+        for key in self.components_graphs:
+            if hasattr(self, f"plot_{key}"):
+                figure = getattr(self, f"plot_{key}")()
+                if figure:
+                    self.components_graphs[key] = dcc.Graph(
+                        figure=figure,
+                        id=key,
+                        style={
+                            "display": "inline-block",
+                            "width": "50%",
+                            "height": "800px",
+                        },
+                    )
+
+    def build_model_diagnostics_graphs(self):
+        for key in self.model_diagnostics_graphs:
+            if hasattr(self, f"plot_{key}"):
+                figure = getattr(self, f"plot_{key}")()
+                if figure:
+                    self.model_diagnostics_graphs[key] = dcc.Graph(
+                        figure=figure,
+                        id=key,
+                        style={
+                            "display": "inline-block",
+                            "width": "100%",
+                        },
+                    )
+
+    def run(self, **kwargs):
+        self.build_app()
+        self.app.run(**kwargs)
+
+    # Example plot methods (implement these as needed)
+    def plot_actual_vs_fitted(self):
+        import plotly.graph_objs as go
+
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=self.observed.index, y=self.observed, mode="lines", name="Actual"
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=self.observed.index,
+                y=self.results.fittedvalues,
+                mode="lines",
+                name="Fitted",
+            )
+        )
+        fig.update_layout(title="Actual vs Fitted")
+        return fig
+
+    def plot_seasonal_component(self):
+        import plotly.graph_objs as go
+
+        fig = go.Figure()
+        if getattr(self.results, "seasonal"):
+            fig.add_trace(
+                go.Scatter(
+                    x=self.observed.index,
+                    y=self.results.seasonal["smoothed"],
+                    mode="lines",
+                    name=f"Seasonal {self.model.seasonal_periods}",
+                )
+            )
+            fig.update_layout(title="Seasonal Component")
+            return fig
+
+    # Implement the rest of the plot_* methods similarly
+    def plot_frequency_seasonal_components(self):
+        import plotly.graph_objs as go
+
+        fig = go.Figure()
+        if getattr(self.results, "freq_seasonal"):
+            for i, fs in enumerate(self.results.freq_seasonal):
+                fig.add_trace(
+                    go.Scatter(
+                        x=self.observed.index,
+                        y=fs["smoothed"],
+                        mode="lines",
+                        name=f"Periods: {self.model.freq_seasonal_periods[i]} Harmonics: {self.model.freq_seasonal_harmonics[i]} Stochastic: {self.model.stochastic_freq_seasonal[i]}",
+                    )
+                )
+            fig.update_layout(title="Frequency Seasonal Component")
+            return fig
+
+    def plot_cycle_component(self):
+        import plotly.graph_objs as go
+
+        fig = go.Figure()
+        if getattr(self.results, "cycle"):
+            fig.add_trace(
+                go.Scatter(
+                    x=self.observed.index,
+                    y=self.results.cycle["smoothed"],
+                    mode="lines",
+                    name="Cycle Component",
+                )
+            )
+            fig.update_layout(title="Cycle Component")
+            return fig
+
+    def plot_trend_component(self):
+        import plotly.graph_objs as go
+
+        fig = go.Figure()
+        if getattr(self.results, "trend"):
+            fig.add_trace(
+                go.Scatter(
+                    x=self.observed.index,
+                    y=self.results.trend["smoothed"],
+                    mode="lines",
+                    name="Trend Component",
+                )
+            )
+            fig.update_layout(title="Trend Component")
+            return fig
+
+    def plot_level_component(self):
+        import plotly.graph_objs as go
+
+        fig = go.Figure()
+        if getattr(self.results, "level"):
+            fig.add_trace(
+                go.Scatter(
+                    x=self.observed.index,
+                    y=self.results.level["smoothed"],
+                    mode="lines",
+                    name="Level Component",
+                )
+            )
+            fig.update_layout(title="Level Component")
+            return fig
+
+    def plot_autoregressive_component(self):
+        import plotly.graph_objs as go
+
+        fig = go.Figure()
+        if getattr(self.results, "autoregressive"):
+            fig.add_trace(
+                go.Scatter(
+                    x=self.observed.index,
+                    y=self.results.autoregressive["smoothed"],
+                    mode="lines",
+                    name="Autoregressive Component",
+                )
+            )
+            fig.update_layout(title="Autoregressive Component")
+            return fig
+
+    def plot_residuals(self):
+        import plotly.graph_objs as go
+
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=self.observed.index,
+                y=self.results.resid,
+                mode="lines",
+                name="Residuals",
+            )
+        )
+        fig.update_layout(title="Residuals")
+        return fig
+
+    def plot_residuals_acf(self):
+        import plotly.graph_objs as go
+        from statsmodels.tsa import stattools
+
+        acf_interval = stattools.acf(self.results.resid, nlags=40, alpha=0.05)
+
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=np.arange(len(acf_interval[0])),
+                y=acf_interval[0],
+                mode="lines+markers",
+                name="ACF",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=np.concatenate(
+                    [
+                        np.arange(len(acf_interval[0])),
+                        np.arange(len(acf_interval[0]))[::-1],
+                    ]
+                ),
+                y=np.concatenate([acf_interval[1][:, 1], acf_interval[1][::-1, 0]]),
+                mode="lines",
+                name="95% Confidence Interval",
+                fill="toself",
+                fillcolor="rgba(0,100,80,0.2)",
+                line=dict(color="rgba(255,255,255,0)"),
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
+        fig.update_layout(
+            title="ACF of Residuals", xaxis_title="Lag", yaxis_title="ACF"
+        )
+        return fig
+
+    def plot_residuals_histogram(self):
+        from plotly.figure_factory import create_distplot
+
+        normal_data = np.random.normal(scale=self.results.resid.std(), size=10000)
+
+        fig = create_distplot(
+            [self.results.resid, normal_data],
+            group_labels=["Residuals", "N(0,1)"],
+            bin_size=0.5,
+        )
+        fig.add_vline(0, line_width=2, line_color="orange")
+        fig.add_vline(self.results.resid.mean(), line_width=2, line_color="lightblue")
+        fig.update_layout(title="Residuals Histogram", xaxis_title="Residuals")
+        return fig
+
+    def plot_residuals_qq(self):
+        import plotly.graph_objs as go
+        from statsmodels.graphics.gofplots import qqplot
+
+        qqplot_data = qqplot(self.results.resid, line="s", fit=True).gca().lines
+        fig = go.Figure()
+        fig.add_trace(
+            {
+                "type": "scatter",
+                "x": qqplot_data[0].get_xdata(),
+                "y": qqplot_data[0].get_ydata(),
+                "mode": "markers",
+                "marker": {"color": "#19d3f3"},
+            }
+        )
+
+        fig.add_trace(
+            {
+                "type": "scatter",
+                "x": qqplot_data[1].get_xdata(),
+                "y": qqplot_data[1].get_ydata(),
+                "mode": "lines",
+                "line": {"color": "#636efa"},
+            }
+        )
+
+        fig["layout"].update(
+            {
+                "title": "Quantile-Quantile Plot",
+                "xaxis": {"title": "Theoritical Quantities", "zeroline": False},
+                "yaxis": {"title": "Sample Quantities"},
+                "showlegend": False,
+                "width": 800,
+                "height": 700,
+            }
+        )
+        fig.update_layout(title="Q-Q Plot of Residuals")
+        return fig
+
+    def plot_actual_vs_fitted_future(self):
+        import plotly.graph_objs as go
+
+        prediction = self.results.get_prediction(
+            start=self.unobserved_future_data.index[0],
+            end=self.unobserved_future_data.index[-1],
+        )
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=self.unobserved_future_data.index,
+                y=self.unobserved_future_data,
+                mode="lines",
+                name="Actual",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=self.unobserved_future_data.index,
+                y=prediction.predicted_mean,
+                mode="lines",
+                name="Fitted Future",
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=np.concatenate(
+                    [
+                        self.unobserved_future_data.index,
+                        self.unobserved_future_data.index[::-1],
+                    ]
+                ),
+                y=np.concatenate(
+                    [
+                        prediction.conf_int().iloc[:, 0],
+                        prediction.conf_int().iloc[::-1, 1],
+                    ]
+                ),
+                mode="lines",
+                name="95% Confidence Interval",
+                fill="toself",
+                fillcolor="rgba(0,100,80,0.2)",
+                line=dict(color="rgba(255,255,255,0)"),
+            )
+        )
+        fig.update_layout(title="Actual vs Fitted Future")
+        return fig
+
+    def plot_parameters_statistics(self):
+        import plotly.graph_objs as go
+
+        summary = self.results.summary().tables[1]
+        df_summary = pd.DataFrame(summary.data[1:], columns=summary.data[0])
+        fig = go.Figure()
+        fig.add_trace(
+            go.Table(
+                header=dict(
+                    values=df_summary.columns.tolist(),
+                    fill_color="paleturquoise",
+                    align="left",
+                    font_size=22,
+                    height=40,
+                ),
+                cells=dict(
+                    values=[df_summary[col] for col in df_summary.columns],
+                    fill_color="lavender",
+                    align="left",
+                    font_size=22,
+                    height=30,
+                ),
+            )
+        )
+
+        fig.update_layout(title="Parameters Statistics")
+        return fig
+
+    def plot_model_summary(self):
+        import plotly.graph_objs as go
+        from io import StringIO
+
+        summary = self.results.summary().tables[0]
+        summary_html = summary.as_html()
+        df = pd.read_html(StringIO(summary_html))[0]
+        df.replace(pd.NA, "", inplace=True)
+        df.replace(np.nan, "", inplace=True)
+        fig = go.Figure()
+        fig.add_trace(
+            go.Table(
+                header=dict(
+                    values=[""]
+                    * df.shape[1],  # num_columns = number of columns in your table
+                    fill=dict(color="rgba(0,0,0,0)"),
+                    line=dict(width=0, color="rgba(0,0,0,0)"),
+                ),
+                cells=dict(
+                    values=[df[col] for col in df.columns],
+                    fill_color="lavender",
+                    align="left",
+                    font_size=22,
+                    height=30,
+                    line=dict(width=0, color="rgba(0,0,0,0)"),
+                ),
+            )
+        )
+        fig.update_layout(title="Model Summary")
+        return fig
+
+    def plot_model_statistics(self):
+        import plotly.graph_objs as go
+
+        summary = self.results.summary().tables[2]
+        summary_html = summary.as_html()
+        df = pd.read_html(summary_html)[0]
+        fig = go.Figure()
+        fig.add_trace(
+            go.Table(
+                header=dict(
+                    values=[""]
+                    * df.shape[1],  # num_columns = number of columns in your table
+                    fill=dict(color="rgba(0,0,0,0)"),
+                    line=dict(width=0, color="rgba(0,0,0,0)"),
+                ),
+                cells=dict(
+                    values=[df[col] for col in df.columns],
+                    fill_color="lavender",
+                    align="left",
+                    font_size=22,
+                    height=30,
+                ),
+            )
+        )
+        fig.update_layout(title="Model Statistics")
+        return fig

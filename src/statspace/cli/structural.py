@@ -236,7 +236,7 @@ def train(
     ] = "lower=.5,upper=infinity",
 ):
     cli_args = deepcopy(locals())
-    from statspace.models.structural import StructuralTimeSeriesParams
+    from statspace.models.structural import StructuralTimeSeriesParams, Visualization
     from statsmodels.tsa.statespace.structural import UnobservedComponents
     import pandas as pd
     from rich import print
@@ -286,66 +286,38 @@ def train(
     )
 
     # Combine into a dictionary for easy access
-    viz_data = {
-        "observed": endog_train,
-        "fitted": fitted,
-        "ci": ci,
-        "trend": fitted_trend,
-        "level": fitted_level,
-        "freq_seasonal": fitted_freq_seasonal,
-        "cycle": fitted_cycle,
-        "autoregressive": fitted_autoregressive,
-        "seasonal": fitted_seasonal,
-        "residuals": results.resid,
-        "dates": endog_train.index,
-    }
-    if forecast_horizon:
-        forecast = results.get_forecast(steps=forecast_horizon, exog=exog_test)
-        print(forecast.summary_frame())
-        # Forecast data
-        viz_data["forecast_dates"] = forecast.predicted_mean.index
-        viz_data["forecast_actual"] = endog_test
-        viz_data["forecast_mean"] = forecast.predicted_mean
-        viz_data["forecast_ci"] = forecast.conf_int()
-        viz_data["forecast_resids"] = forecast.predicted_mean - endog_test
+    # viz_data = {
+    #     "observed": endog_train,
+    #     "fitted": fitted,
+    #     "ci": ci,
+    #     "trend": fitted_trend,
+    #     "level": fitted_level,
+    #     "freq_seasonal": fitted_freq_seasonal,
+    #     "cycle": fitted_cycle,
+    #     "autoregressive": fitted_autoregressive,
+    #     "seasonal": fitted_seasonal,
+    #     "residuals": results.resid,
+    #     "dates": endog_train.index,
+    # }
+    # if forecast_horizon:
+    #     forecast = results.get_forecast(steps=forecast_horizon, exog=exog_test)
+    #     print(forecast.summary_frame())
+    #     # Forecast data
+    #     viz_data["forecast_dates"] = forecast.predicted_mean.index
+    #     viz_data["forecast_actual"] = endog_test
+    #     viz_data["forecast_mean"] = forecast.predicted_mean
+    #     viz_data["forecast_ci"] = forecast.conf_int()
+    #     viz_data["forecast_resids"] = forecast.predicted_mean - endog_test
 
-    import matplotlib.pyplot as plt
-    from io import StringIO
-    import numpy as np
-
-    fig1 = plt.figure(num=1, layout="constrained")
-    results.plot_components(figsize=(12, 6), fig=fig1)
-
-    fig2 = plt.figure(num=2, layout="constrained")
-    results.plot_diagnostics(figsize=(12, 6), fig=fig2, lags=10)
-
-    fig3, ax = plt.subplots(layout="constrained", figsize=(12, 6))
-    cmap = plt.get_cmap("plasma")
-    df[endog_var][-2 * forecast_horizon :].plot(
-        style="-", color="black", ax=ax, label="Actual"
+    viz = Visualization(
+        observed=endog_train,
+        model=model,
+        results=results,
+        unobserved_future_data=endog_test,
     )
-    # previous_year.plot(label='Previous Year')
-    viz_data["forecast_mean"].plot(label="Forecast", color="black", style="--", ax=ax)
-    plt.legend()
-    alphas = np.linspace(0.01, 0.49, num=100)
-    color_val = (alphas - alphas.min()) / (alphas.max() - alphas.min())
-    for a, c in zip(alphas, color_val):
-        preds_prob = forecast.conf_int(alpha=a)
-        upper = preds_prob.filter(like="upper").values.flatten()
-        lower = preds_prob.filter(like="lower").values.flatten()
-        ax.fill_between(
-            x=viz_data["forecast_dates"],
-            y1=lower,
-            y2=upper,
-            color=cmap(c),
-            alpha=0.05,
-        )
-
-    ax.legend()
-    plt.show()
-
     print("Fitted Model Summary:")
     print(results.summary())
+    viz.run()
 
 
 if __name__ == "__main__":
