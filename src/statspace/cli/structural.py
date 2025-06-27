@@ -175,7 +175,7 @@ def train(
     freq_seasonal: Annotated[
         list[str],
         typer.Option(
-            help="a comma separated key=value pairs of the form 'period=<period>,harmonics=<haramonics>,stochastic=<stochastic>' where <period> and <harmonics> are integers and <stochastic> is a boolean value. This will create a frequency seasonal component with the specified period and harmonics.",
+            help="a comma separated key=value pairs of the form 'period=<period>,harmonics=<haramonics>,stochastic=<stochastic>' where <period> and <harmonics> are integers and <stochastic> could be 'true' or 'false'. It will create a frequency seasonal component with the specified period and harmonics.",
             rich_help_panel="Model Parameters",
         ),
     ] = [],
@@ -241,19 +241,18 @@ def train(
     import pandas as pd
     from rich import print
 
-    df = (
-        pd.read_csv(
-            dataset_path,
-            parse_dates=[timestamp_var] if timestamp_var else None,
-            index_col=timestamp_var if timestamp_var else None,
-        )[exog_var + [endog_var]]
-        .resample(resample_freq)
-        .agg(agg_function)
+    df = pd.read_csv(
+        dataset_path,
+        parse_dates=[timestamp_var] if timestamp_var else None,
+        index_col=timestamp_var if timestamp_var else None,
+    )[exog_var + [endog_var]]
+    df_resampled = df.resample(resample_freq).agg(agg_function)
+    df_resampled = (
+        df_resampled[training_start_date:] if training_start_date else df_resampled
     )
-    df = df[training_start_date:] if training_start_date else df
 
-    train = df[:training_end_date] if training_end_date else df
-    test = df[train.shape[0] : train.shape[0] + forecast_horizon]
+    train = df_resampled[:training_end_date] if training_end_date else df_resampled
+    test = df_resampled[train.shape[0] : train.shape[0] + forecast_horizon]
 
     exog_train = train[exog_var] if exog_var else None
     exog_test = test[exog_var] if exog_var else None

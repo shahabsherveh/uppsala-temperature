@@ -30,6 +30,13 @@ def fetch(
             rich_help_panel="Data Fetching",
         ),
     ] = "corrected-archive",
+    skiprows: Annotated[
+        int,
+        typer.Option(
+            help="Number of rows to skip in the data file.",
+            rich_help_panel="Data Fetching",
+        ),
+    ] = 10,
 ):
     """
     Fetches data from the SMHI API for a given station.
@@ -39,7 +46,11 @@ def fetch(
     )
 
     data = get_smhi_data(
-        parameter=int(parameter), station=int(station), period=period, freq=freq
+        parameter=int(parameter),
+        station=int(station),
+        period=period,
+        freq=freq,
+        skiprows=skiprows,
     )
     if path:
         data.to_csv(path, index=False)

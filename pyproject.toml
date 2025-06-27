@@ -13,7 +13,6 @@ dependencies = [
   "typer == 0.16.0",
   "pytest == 8.4.0",
   "lxml == 5.4.0",
-  "dash-dangerously-set-inner-html == 0.0.2",
 ]
 name = "uppsala-temperature"
 readme = "README.md"

@@ -27,12 +27,13 @@ def get_smhi_data(
     period: Literal[
         "corrected-archive", "latest-month", "latest-day", "latest-hour"
     ] = "corrected-archive",
+    skiprows: int = 10,
 ) -> pd.DataFrame:
     """
     Read data from the SMHI API.
     """
     url = f"https://opendata-download-metobs.smhi.se/api/version/latest/parameter/{parameter}/station/{station}/period/{period}/data.csv"
-    df = pd.read_csv(url, sep=";", skiprows=10, usecols=range(4))
+    df = pd.read_csv(url, sep=";", skiprows=skiprows, usecols=range(4))
     df["timestamp"] = pd.to_datetime(
         df["Datum"] + " " + df["Tid (UTC)"],
     )

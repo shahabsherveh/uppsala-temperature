@@ -165,12 +165,19 @@ class Visualization:
         model: UnobservedComponents,
         results: UnobservedComponentsResults,
         unobserved_future_data: pd.DataFrame,
+        tab_font_size: int = 24,
+        graph_title_font_size: int = 18,
+        tables_font_size: int = 14,
     ) -> None:
         self.observed = observed
         self.model = model
         self.results = results
         self.unobserved_future_data = unobserved_future_data
+        self.tab_font_size = tab_font_size
+        self.graph_title_font_size = graph_title_font_size
+        self.tables_font_size = tables_font_size
         self.dash_layout = None
+        self.trimmed_residuals = self.trim_residuals()
         self.prediction_graphs = {
             "actual_vs_fitted": None,
             "residuals": None,
@@ -192,9 +199,20 @@ class Visualization:
         self.model_diagnostics_graphs = {
             "parameters_statistics": None,
             "model_summary": None,
-            "model_statistics": None,
+            "model_tests": None,
         }
         self.app = Dash(__name__)
+
+    def trim_residuals(self):
+        """
+        Trim the initial points of the residuals based on the maximum initial points
+        required by the model components.
+        """
+        max_initial_points = max(
+            [self.model.loglikelihood_burn, self.results.nobs_diffuse]
+        )
+
+        return self.results.resid[max_initial_points:]
 
     def build_layout(self):
         self.dash_layout = html.Div(
@@ -227,6 +245,7 @@ class Visualization:
                             ],
                         ),
                     ],
+                    style=dict(fontSize=self.tab_font_size),
                 ),
             ]
         )
@@ -244,6 +263,7 @@ class Visualization:
             if hasattr(self, f"plot_{key}"):
                 figure = getattr(self, f"plot_{key}")()
                 if figure:
+                    figure.update_layout(font_size=self.graph_title_font_size)
                     self.prediction_graphs[key] = dcc.Graph(
                         figure=figure,
                         id=key,
@@ -259,6 +279,7 @@ class Visualization:
             if hasattr(self, f"plot_{key}"):
                 figure = getattr(self, f"plot_{key}")()
                 if figure:
+                    figure.update_layout(font_size=self.graph_title_font_size)
                     self.components_graphs[key] = dcc.Graph(
                         figure=figure,
                         id=key,
@@ -465,12 +486,13 @@ class Visualization:
         normal_data = np.random.normal(scale=self.results.resid.std(), size=10000)
 
         fig = create_distplot(
-            [self.results.resid, normal_data],
+            [self.trimmed_residuals, normal_data],
             group_labels=["Residuals", "N(0,1)"],
             bin_size=0.5,
+            colors=["blue", "orange"],
         )
         fig.add_vline(0, line_width=2, line_color="orange")
-        fig.add_vline(self.results.resid.mean(), line_width=2, line_color="lightblue")
+        fig.add_vline(self.results.resid.mean(), line_width=2, line_color="blue")
         fig.update_layout(title="Residuals Histogram", xaxis_title="Residuals")
         return fig
 
@@ -478,7 +500,7 @@ class Visualization:
         import plotly.graph_objs as go
         from statsmodels.graphics.gofplots import qqplot
 
-        qqplot_data = qqplot(self.results.resid, line="s", fit=True).gca().lines
+        qqplot_data = qqplot(self.trimmed_residuals, line="s", fit=True).gca().lines
         fig = go.Figure()
         fig.add_trace(
             {
@@ -537,6 +559,28 @@ class Visualization:
                 name="Fitted Future",
             )
         )
+        fig.add_trace(
+            go.Scatter(
+                x=self.unobserved_future_data.index,
+                y=self.observed[
+                    self.unobserved_future_data.index - pd.Timedelta(365, unit="D")
+                ],
+                mode="lines",
+                name="Previous Year",
+                line=dict(dash="dash"),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=self.unobserved_future_data.index,
+                y=self.observed[
+                    self.unobserved_future_data.index - pd.Timedelta(2 * 365, unit="D")
+                ],
+                mode="lines",
+                name="Two Years Ago",
+                line=dict(dash="dash"),
+            )
+        )
 
         fig.add_trace(
             go.Scatter(
@@ -574,20 +618,24 @@ class Visualization:
                     values=df_summary.columns.tolist(),
                     fill_color="paleturquoise",
                     align="left",
-                    font_size=22,
+                    font_size=self.tables_font_size,
                     height=40,
                 ),
                 cells=dict(
                     values=[df_summary[col] for col in df_summary.columns],
                     fill_color="lavender",
                     align="left",
-                    font_size=22,
+                    font_size=self.tables_font_size,
                     height=30,
                 ),
             )
         )
 
-        fig.update_layout(title="Parameters Statistics")
+        fig.update_layout(
+            title=dict(
+                text="Parameters Statistics", font_size=self.graph_title_font_size
+            )
+        )
         return fig
 
     def plot_model_summary(self):
@@ -612,21 +660,24 @@ class Visualization:
                     values=[df[col] for col in df.columns],
                     fill_color="lavender",
                     align="left",
-                    font_size=22,
+                    font_size=self.tables_font_size,
                     height=30,
                     line=dict(width=0, color="rgba(0,0,0,0)"),
                 ),
             )
         )
-        fig.update_layout(title="Model Summary")
+        fig.update_layout(
+            title=dict(text="Model Summary", font_size=self.graph_title_font_size)
+        )
         return fig
 
-    def plot_model_statistics(self):
+    def plot_model_tests(self):
         import plotly.graph_objs as go
+        from io import StringIO
 
         summary = self.results.summary().tables[2]
         summary_html = summary.as_html()
-        df = pd.read_html(summary_html)[0]
+        df = pd.read_html(StringIO(summary_html))[0]
         fig = go.Figure()
         fig.add_trace(
             go.Table(
@@ -640,10 +691,12 @@ class Visualization:
                     values=[df[col] for col in df.columns],
                     fill_color="lavender",
                     align="left",
-                    font_size=22,
+                    font_size=self.tables_font_size,
                     height=30,
                 ),
             )
         )
-        fig.update_layout(title="Model Statistics")
+        fig.update_layout(
+            title=dict(text="Model Tests", font_size=self.graph_title_font_size)
+        )
         return fig
