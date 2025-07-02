@@ -32,12 +32,21 @@ Now to activate it you need to restart your terminal.
 
 At the moment, the package provides functionalities to fetch time series data
 from Sweden's Meteorological and Hydrological Institute (SMHI) using its api
-and to perform structural state space modeling on the data and produce
-plots using matplotlib. The entry point for getting data is `statspace data`
+and to perform structural state space modeling on the data and creates a dash
+app. The entry point for getting data is `statspace data`
 and for statistical modeling is `statspace structural train`.
 The parameters for them could be found by running the --help
 flag for each command. Here is when running help for train command:
 ![help](docs/train_help.png)
 
-And here are the produced plots for the training command:
-![dashboard](docs/dashboard.png)
+The dash app include three tabs: one for the model prediction and it residuals,
+one for the structural model components and one for the model summary and statistics.
+
+![dashboard prediction](docs/dash/prediction.png)
+![dashboard components](docs/dash/components.png)
+![dashboard summary](docs/dash/diagnostics.png)
+
+The command outputs the model summary which are also available in the
+dashboard.
+
+![command output](docs/command_output.png)
